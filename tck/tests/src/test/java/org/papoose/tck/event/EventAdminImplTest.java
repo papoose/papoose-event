@@ -26,10 +26,12 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static junit.framework.Assert.assertEquals;
-import org.junit.Assert;
+import org.junit.After;
+import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import static org.ops4j.pax.exam.CoreOptions.equinox;
@@ -50,7 +52,6 @@ import org.osgi.framework.ServiceRegistration;
 import org.osgi.service.event.Event;
 import org.osgi.service.event.EventConstants;
 import org.osgi.service.event.EventHandler;
-
 import org.papoose.event.EventAdminImpl;
 
 
@@ -62,6 +63,10 @@ public class EventAdminImplTest
 {
     @Inject
     private BundleContext bundleContext = null;
+    private ExecutorService executor;
+    private ExecutorService hammer;
+    private ScheduledExecutorService scheduledExecutor;
+    private EventAdminImpl eventAdmin;
 
     @Configuration
     public static Option[] configure()
@@ -88,18 +93,11 @@ public class EventAdminImplTest
     @Test
     public void testSingleEvent() throws Exception
     {
-        Assert.assertNotNull(bundleContext);
-        ExecutorService executor = Executors.newFixedThreadPool(5);
-        ScheduledExecutorService scheduledExecutor = Executors.newScheduledThreadPool(2);
-
-        EventAdminImpl eventAdmin = new EventAdminImpl(bundleContext, executor, scheduledExecutor);
-
-        eventAdmin.start();
-
         Dictionary<String, Object> properties = new Hashtable<String, Object>();
         properties.put(EventConstants.EVENT_TOPIC, "a/b/c/d");
 
-        final CountDownLatch latch = new CountDownLatch(1);
+        final CountDownLatch first = new CountDownLatch(1);
+        final CountDownLatch second = new CountDownLatch(5);
         final AtomicInteger count = new AtomicInteger();
         ServiceRegistration sr = bundleContext.registerService(EventHandler.class.getName(), new EventHandler()
         {
@@ -116,52 +114,43 @@ public class EventAdminImplTest
                 finally
                 {
                     count.incrementAndGet();
-                    latch.countDown();
+                    first.countDown();
+                    second.countDown();
                 }
             }
         }, properties);
 
         try
         {
-            eventAdmin.postEvent(new Event("a/b/c/d", (Dictionary) null));
+            eventAdmin.postEvent(new Event("a/b/c/d", (Dictionary)null));
 
-            latch.await();
+            first.await();
 
             assertEquals(1, count.get());
 
-            eventAdmin.sendEvent(new Event("a/b/c/d", (Dictionary) null));
-            eventAdmin.sendEvent(new Event("a/b/c/d/e", (Dictionary) null));
-            eventAdmin.sendEvent(new Event("z/b/c/d", (Dictionary) null));
-            eventAdmin.sendEvent(new Event("a/b/c", (Dictionary) null));
+            eventAdmin.sendEvent(new Event("a/b/c/d", (Dictionary)null));
+            eventAdmin.sendEvent(new Event("a/b/c/d/e", (Dictionary)null));
+            eventAdmin.sendEvent(new Event("z/b/c/d", (Dictionary)null));
+            eventAdmin.sendEvent(new Event("a/b/c", (Dictionary)null));
+
+            first.await();
 
             assertEquals(2, count.get());
         }
         finally
         {
             sr.unregister();
-
-            eventAdmin.stop();
-
-            executor.shutdown();
-            scheduledExecutor.shutdown();
         }
     }
 
     @Test
     public void testWildcard() throws Exception
     {
-        Assert.assertNotNull(bundleContext);
-        ExecutorService executor = Executors.newFixedThreadPool(5);
-        ScheduledExecutorService scheduledExecutor = Executors.newScheduledThreadPool(2);
-
-        EventAdminImpl eventAdmin = new EventAdminImpl(bundleContext, executor, scheduledExecutor);
-
-        eventAdmin.start();
-
         Dictionary<String, Object> properties = new Hashtable<String, Object>();
         properties.put(EventConstants.EVENT_TOPIC, "a/b/c/*");
 
-        final CountDownLatch latch = new CountDownLatch(1);
+        final CountDownLatch first = new CountDownLatch(1);
+        final CountDownLatch second = new CountDownLatch(4);
         final AtomicInteger count = new AtomicInteger();
         ServiceRegistration sr = bundleContext.registerService(EventHandler.class.getName(), new EventHandler()
         {
@@ -178,51 +167,40 @@ public class EventAdminImplTest
                 finally
                 {
                     count.incrementAndGet();
-                    latch.countDown();
+                    first.countDown();
+                    second.countDown();
                 }
             }
         }, properties);
 
         try
         {
-            eventAdmin.postEvent(new Event("a/b/c/d", (Dictionary) null));
+            eventAdmin.postEvent(new Event("a/b/c/d", (Dictionary)null));
 
-            latch.await();
+            first.await();
 
             assertEquals(1, count.get());
 
-            eventAdmin.sendEvent(new Event("a/b/c", (Dictionary) null));
-            eventAdmin.sendEvent(new Event("a/b/c/d", (Dictionary) null));
-            eventAdmin.sendEvent(new Event("a/b/c/d/e", (Dictionary) null));
+            eventAdmin.sendEvent(new Event("a/b/c", (Dictionary)null));
+            eventAdmin.sendEvent(new Event("a/b/c/d", (Dictionary)null));
+            eventAdmin.sendEvent(new Event("a/b/c/d/e", (Dictionary)null));
 
             assertEquals(3, count.get());
         }
         finally
         {
             sr.unregister();
-
-            eventAdmin.stop();
-
-            executor.shutdown();
-            scheduledExecutor.shutdown();
         }
     }
 
     @Test
     public void testRootWildcard() throws Exception
     {
-        Assert.assertNotNull(bundleContext);
-        ExecutorService executor = Executors.newFixedThreadPool(5);
-        ScheduledExecutorService scheduledExecutor = Executors.newScheduledThreadPool(2);
-
-        EventAdminImpl eventAdmin = new EventAdminImpl(bundleContext, executor, scheduledExecutor);
-
-        eventAdmin.start();
-
         Dictionary<String, Object> properties = new Hashtable<String, Object>();
         properties.put(EventConstants.EVENT_TOPIC, "a/*");
 
-        final CountDownLatch latch = new CountDownLatch(1);
+        final CountDownLatch first = new CountDownLatch(1);
+        final CountDownLatch second = new CountDownLatch(3);
         final AtomicInteger count = new AtomicInteger();
         ServiceRegistration sr = bundleContext.registerService(EventHandler.class.getName(), new EventHandler()
         {
@@ -239,48 +217,101 @@ public class EventAdminImplTest
                 finally
                 {
                     count.incrementAndGet();
-                    latch.countDown();
+                    first.countDown();
+                    second.countDown();
                 }
             }
         }, properties);
 
         try
         {
-            eventAdmin.postEvent(new Event("a/b/c/d", (Dictionary) null));
+            eventAdmin.postEvent(new Event("a/b/c/d", (Dictionary)null));
 
-            latch.await();
+            first.await();
 
             assertEquals(1, count.get());
 
-            eventAdmin.sendEvent(new Event("a/b/c", (Dictionary) null));
-            eventAdmin.sendEvent(new Event("a/b/c/d", (Dictionary) null));
-            eventAdmin.sendEvent(new Event("z/b/c/d", (Dictionary) null));
+            eventAdmin.sendEvent(new Event("a/b/c", (Dictionary)null));
+            eventAdmin.sendEvent(new Event("a/b/c/d", (Dictionary)null));
+            eventAdmin.sendEvent(new Event("z/b/c/d", (Dictionary)null));
+
+            second.await();
 
             assertEquals(3, count.get());
         }
         finally
         {
             sr.unregister();
+        }
+    }
 
-            eventAdmin.stop();
+    @Test
+    public void testTimeout() throws Exception
+    {
+        eventAdmin.setTimeout(100);
+        eventAdmin.setTimeUnit(TimeUnit.MILLISECONDS);
 
-            executor.shutdown();
-            scheduledExecutor.shutdown();
+        Dictionary<String, Object> properties = new Hashtable<String, Object>();
+        properties.put(EventConstants.EVENT_TOPIC, "a/b/c/d");
+
+        final CountDownLatch first = new CountDownLatch(1);
+        final AtomicInteger count = new AtomicInteger();
+        ServiceRegistration faulty = bundleContext.registerService(EventHandler.class.getName(), new EventHandler()
+        {
+            public void handleEvent(Event event)
+            {
+                try
+                {
+                    Thread.sleep(1000);
+                }
+                catch (InterruptedException ie)
+                {
+                    Thread.currentThread().interrupt();
+                }
+                finally
+                {
+                    count.incrementAndGet();
+                    first.countDown();
+                }
+            }
+        }, properties);
+
+        final CountDownLatch second = new CountDownLatch(5);
+        ServiceRegistration srLatch = bundleContext.registerService(EventHandler.class.getName(), new EventHandler()
+        {
+            public void handleEvent(Event event)
+            {
+                second.countDown();
+            }
+        }, properties);
+
+        try
+        {
+            eventAdmin.postEvent(new Event("a/b/c/d", (Dictionary)null));
+
+            first.await();
+
+            assertEquals(1, count.get());
+
+            eventAdmin.sendEvent(new Event("a/b/c/d", (Dictionary)null));
+            eventAdmin.sendEvent(new Event("a/b/c/d", (Dictionary)null));
+            eventAdmin.sendEvent(new Event("a/b/c/d", (Dictionary)null));
+            eventAdmin.sendEvent(new Event("a/b/c/d", (Dictionary)null));
+
+            second.await();
+
+            assertEquals(1, count.get());
+        }
+        finally
+        {
+            faulty.unregister();
+            srLatch.unregister();
         }
     }
 
     @Test
     public void testHammerEvent() throws Exception
     {
-        Assert.assertNotNull(bundleContext);
-        ExecutorService executor = Executors.newFixedThreadPool(5);
-        ExecutorService hammer = Executors.newFixedThreadPool(16);
-        ScheduledExecutorService scheduledExecutor = Executors.newScheduledThreadPool(2);
-
-        final EventAdminImpl eventAdmin = new EventAdminImpl(bundleContext, executor, scheduledExecutor);
-
-        eventAdmin.start();
-
         Dictionary<String, Object> properties = new Hashtable<String, Object>();
         properties.put(EventConstants.EVENT_TOPIC, "a/*");
 
@@ -326,12 +357,12 @@ public class EventAdminImplTest
                 {
                     public void run()
                     {
-                        eventAdmin.postEvent(new Event("a/b/" + msgID, (Dictionary) null));
+                        eventAdmin.postEvent(new Event("a/b/" + msgID, (Dictionary)null));
 
-                        eventAdmin.sendEvent(new Event("a/b/c/" + msgID, (Dictionary) null));
-                        eventAdmin.postEvent(new Event("a/b/c/d/" + msgID, (Dictionary) null));
-                        eventAdmin.sendEvent(new Event("z/b/c/d/" + msgID, (Dictionary) null));
-                        eventAdmin.postEvent(new Event("a/b/c/d/e/" + msgID, (Dictionary) null));
+                        eventAdmin.sendEvent(new Event("a/b/c/" + msgID, (Dictionary)null));
+                        eventAdmin.postEvent(new Event("a/b/c/d/" + msgID, (Dictionary)null));
+                        eventAdmin.sendEvent(new Event("z/b/c/d/" + msgID, (Dictionary)null));
+                        eventAdmin.postEvent(new Event("a/b/c/d/e/" + msgID, (Dictionary)null));
 
                         sthreads.add(Thread.currentThread());
                     }
@@ -353,13 +384,27 @@ public class EventAdminImplTest
         finally
         {
             for (int i = 0; i < MAX_LISTENERS; i++) registrations[i].unregister();
-
-            eventAdmin.stop();
-
-            hammer.shutdown();
-            executor.shutdown();
-            scheduledExecutor.shutdown();
         }
     }
 
+    @Before
+    public void before()
+    {
+        executor = Executors.newFixedThreadPool(5);
+        hammer = Executors.newFixedThreadPool(16);
+        scheduledExecutor = Executors.newScheduledThreadPool(2);
+        eventAdmin = new EventAdminImpl(bundleContext, executor, scheduledExecutor);
+
+        eventAdmin.start();
+    }
+
+    @After
+    public void after()
+    {
+        eventAdmin.stop();
+
+        hammer.shutdown();
+        executor.shutdown();
+        scheduledExecutor.shutdown();
+    }
 }
