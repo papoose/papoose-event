@@ -80,7 +80,7 @@ public class EventAdminImplTest
                 // will not be triggered till the framework is not started
                 // waitForFrameworkStartup()
                 provision(
-                        mavenBundle().groupId("org.papoose.cmpn").artifactId("papoose-cmpn-event").version(asInProject())
+                        mavenBundle().groupId("org.papoose.cmpn").artifactId("papoose-event").version(asInProject())
                 )
         );
     }

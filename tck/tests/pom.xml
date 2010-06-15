@@ -1,19 +1,27 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
 
     <parent>
-        <groupId>org.papoose.core.tck</groupId>
+        <groupId>org.papoose.cmpn.tck</groupId>
         <artifactId>tck</artifactId>
         <version>1.0-SNAPSHOT</version>
     </parent>
 
     <modelVersion>4.0.0</modelVersion>
-    <artifactId>papoose-cmpn-tests</artifactId>
-    <name>Papoose :: OSGi Compatibility Tests :: Tests</name>
+    <artifactId>event-tests</artifactId>
+    <name>Papoose :: OSGi TCK :: Tests</name>
     <packaging>jar</packaging>
 
     <build>
         <plugins>
             <plugin>
+                <!--
+
+                The depends-maven-plugin generates the file target/classes/META-INF/maven/dependencies.properties
+                which Pax Exam can then use to resolve the version dependencies of groupId/artifactIds. This lets
+                you keep all your version information in your pom.xml and avoid having to update all your test
+                cases whenever your pom.xml changes.
+
+                -->
                 <groupId>org.apache.servicemix.tooling</groupId>
                 <artifactId>depends-maven-plugin</artifactId>
                 <executions>
@@ -31,28 +39,29 @@
     <dependencies>
 
         <dependency>
-            <groupId>javax.servlet</groupId>
-            <artifactId>com.springsource.javax.servlet</artifactId>
-            <scope>test</scope>
-        </dependency>
-
-        <dependency>
             <groupId>junit</groupId>
             <artifactId>junit</artifactId>
             <scope>test</scope>
         </dependency>
 
         <dependency>
-            <groupId>org.mortbay.jetty</groupId>
-            <artifactId>jetty</artifactId>
-            <version>${jettyVersion}</version>
+            <groupId>org.apache.felix</groupId>
+            <artifactId>org.apache.felix.log</artifactId>
+            <version>1.0.0</version>
             <scope>test</scope>
         </dependency>
 
         <dependency>
-            <groupId>org.mortbay.jetty</groupId>
-            <artifactId>jetty-util</artifactId>
-            <version>${jettyVersion}</version>
+            <groupId>org.eclipse.equinox</groupId>
+            <artifactId>http</artifactId>
+            <version>1.0.100-v20070423</version>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>org.eclipse.equinox</groupId>
+            <artifactId>log</artifactId>
+            <version>1.0.100-v20070226</version>
             <scope>test</scope>
         </dependency>
 
@@ -86,22 +95,13 @@
 
         <dependency>
             <groupId>org.papoose.cmpn</groupId>
-            <artifactId>papoose-cmpn-event</artifactId>
-            <version>${project.version}</version>
+            <artifactId>papoose-event</artifactId>
             <scope>test</scope>
         </dependency>
 
         <dependency>
-            <groupId>org.papoose.cmpn</groupId>
-            <artifactId>papoose-cmpn-http</artifactId>
-            <version>${project.version}</version>
-            <scope>test</scope>
-        </dependency>
-
-        <dependency>
-            <groupId>org.papoose.cmpn</groupId>
-            <artifactId>papoose-cmpn-log</artifactId>
-            <version>${project.version}</version>
+            <groupId>org.papoose.cmpn.tck.bundles</groupId>
+            <artifactId>bundle</artifactId>
             <scope>test</scope>
         </dependency>
 

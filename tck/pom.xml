@@ -2,19 +2,96 @@
 <project>
     <parent>
         <groupId>org.papoose.cmpn</groupId>
-        <artifactId>papoose-cmpn</artifactId>
+        <artifactId>event-project</artifactId>
         <version>1.0-SNAPSHOT</version>
     </parent>
 
     <modelVersion>4.0.0</modelVersion>
-    <groupId>org.papoose.core.tck</groupId>
+    <groupId>org.papoose.cmpn.tck</groupId>
     <artifactId>tck</artifactId>
     <packaging>pom</packaging>
-    <name>Papoose :: OSGi Compatibility Tests</name>
+    <name>Papoose :: OSGi TCK</name>
 
     <modules>
         <module>tests</module>
     </modules>
+
+    <properties>
+        <paxExamVersion>1.2.1-SNAPSHOT</paxExamVersion>
+    </properties>
+
+    <dependencyManagement>
+        <dependencies>
+
+            <dependency>
+                <groupId>junit</groupId>
+                <artifactId>junit</artifactId>
+                <version>4.7</version>
+                <scope>test</scope>
+            </dependency>
+
+            <dependency>
+                <groupId>org.mockito</groupId>
+                <artifactId>mockito-all</artifactId>
+                <version>1.8.2</version>
+                <scope>test</scope>
+            </dependency>
+
+            <dependency>
+                <groupId>org.ops4j.pax.exam</groupId>
+                <artifactId>pax-exam</artifactId>
+                <version>${paxExamVersion}</version>
+                <scope>test</scope>
+            </dependency>
+
+            <dependency>
+                <groupId>org.ops4j.pax.exam</groupId>
+                <artifactId>pax-exam-junit</artifactId>
+                <version>${paxExamVersion}</version>
+                <scope>test</scope>
+            </dependency>
+
+            <dependency>
+                <groupId>org.ops4j.pax.exam</groupId>
+                <artifactId>pax-exam-container-default</artifactId>
+                <version>${paxExamVersion}</version>
+                <scope>test</scope>
+            </dependency>
+
+            <dependency>
+                <groupId>org.osgi</groupId>
+                <artifactId>org.osgi.compendium</artifactId>
+                <version>4.2.0</version>
+                <scope>provided</scope>
+            </dependency>
+
+            <dependency>
+                <groupId>org.osgi</groupId>
+                <artifactId>org.osgi.core</artifactId>
+                <version>4.2.0</version>
+                <scope>provided</scope>
+            </dependency>
+
+            <dependency>
+                <groupId>org.papoose.cmpn</groupId>
+                <artifactId>papoose-event</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>org.papoose.cmpn.tck.bundles</groupId>
+                <artifactId>bundle</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>org.papoose.test.bundles</groupId>
+                <artifactId>test-share</artifactId>
+                <version>1.1.0</version>
+            </dependency>
+
+        </dependencies>
+    </dependencyManagement>
 
 </project>
 
