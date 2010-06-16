@@ -25,74 +25,61 @@ import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static junit.framework.Assert.assertEquals;
 import org.junit.After;
+import static org.junit.Assert.assertNotNull;
 import org.junit.Before;
 import org.junit.Test;
-import org.junit.runner.RunWith;
-import static org.ops4j.pax.exam.CoreOptions.equinox;
-import static org.ops4j.pax.exam.CoreOptions.felix;
-import static org.ops4j.pax.exam.CoreOptions.knopflerfish;
-import static org.ops4j.pax.exam.CoreOptions.mavenBundle;
 import static org.ops4j.pax.exam.CoreOptions.options;
-import static org.ops4j.pax.exam.CoreOptions.provision;
 import org.ops4j.pax.exam.Inject;
-import static org.ops4j.pax.exam.MavenUtils.asInProject;
 import org.ops4j.pax.exam.Option;
 import static org.ops4j.pax.exam.container.def.PaxRunnerOptions.compendiumProfile;
 import static org.ops4j.pax.exam.container.def.PaxRunnerOptions.vmOption;
 import org.ops4j.pax.exam.junit.Configuration;
-import org.ops4j.pax.exam.junit.JUnit4TestRunner;
 import org.osgi.framework.BundleContext;
+import org.osgi.framework.ServiceReference;
 import org.osgi.framework.ServiceRegistration;
 import org.osgi.service.event.Event;
+import org.osgi.service.event.EventAdmin;
 import org.osgi.service.event.EventConstants;
 import org.osgi.service.event.EventHandler;
-import org.papoose.event.EventAdminImpl;
 
 
 /**
  * @version $Revision: $ $Date: $
  */
-@RunWith(JUnit4TestRunner.class)
-public class EventAdminImplTest
+public abstract class BaseEventAdminImplTest
 {
     @Inject
-    private BundleContext bundleContext = null;
-    private ExecutorService executor;
+    protected BundleContext bundleContext = null;
     private ExecutorService hammer;
-    private ScheduledExecutorService scheduledExecutor;
-    private EventAdminImpl eventAdmin;
 
     @Configuration
-    public static Option[] configure()
+    public static Option[] baseConfigure()
     {
         return options(
-                equinox(),
-                felix(),
-                knopflerfish(),
-                // papoose(),
                 compendiumProfile(),
-                vmOption("-Xmx1024M"),
+                vmOption("-Xmx1024M")
                 //vmOption("-Xmx1024M -Xrunjdwp:transport=dt_socket,server=y,suspend=y,address=5005"),
                 // this is necessary to let junit runner not timout the remote process before attaching debugger
                 // setting timeout to 0 means wait as long as the remote service comes available.
                 // starting with version 0.5.0 of PAx Exam this is no longer required as by default the framework tests
                 // will not be triggered till the framework is not started
                 // waitForFrameworkStartup()
-                provision(
-                        mavenBundle().groupId("org.papoose.cmpn").artifactId("papoose-event").version(asInProject())
-                )
         );
     }
 
     @Test
     public void testSingleEvent() throws Exception
     {
+        assertNotNull(bundleContext);
+
+        ServiceReference easr = bundleContext.getServiceReference(EventAdmin.class.getName());
+        EventAdmin eventAdmin = (EventAdmin) bundleContext.getService(easr);
+        assertNotNull(eventAdmin);
+
         Dictionary<String, Object> properties = new Hashtable<String, Object>();
         properties.put(EventConstants.EVENT_TOPIC, "a/b/c/d");
 
@@ -122,16 +109,16 @@ public class EventAdminImplTest
 
         try
         {
-            eventAdmin.postEvent(new Event("a/b/c/d", (Dictionary)null));
+            eventAdmin.postEvent(new Event("a/b/c/d", (Dictionary) null));
 
             first.await();
 
             assertEquals(1, count.get());
 
-            eventAdmin.sendEvent(new Event("a/b/c/d", (Dictionary)null));
-            eventAdmin.sendEvent(new Event("a/b/c/d/e", (Dictionary)null));
-            eventAdmin.sendEvent(new Event("z/b/c/d", (Dictionary)null));
-            eventAdmin.sendEvent(new Event("a/b/c", (Dictionary)null));
+            eventAdmin.sendEvent(new Event("a/b/c/d", (Dictionary) null));
+            eventAdmin.sendEvent(new Event("a/b/c/d/e", (Dictionary) null));
+            eventAdmin.sendEvent(new Event("z/b/c/d", (Dictionary) null));
+            eventAdmin.sendEvent(new Event("a/b/c", (Dictionary) null));
 
             first.await();
 
@@ -146,6 +133,12 @@ public class EventAdminImplTest
     @Test
     public void testWildcard() throws Exception
     {
+        assertNotNull(bundleContext);
+
+        ServiceReference easr = bundleContext.getServiceReference(EventAdmin.class.getName());
+        EventAdmin eventAdmin = (EventAdmin) bundleContext.getService(easr);
+        assertNotNull(eventAdmin);
+
         Dictionary<String, Object> properties = new Hashtable<String, Object>();
         properties.put(EventConstants.EVENT_TOPIC, "a/b/c/*");
 
@@ -175,15 +168,15 @@ public class EventAdminImplTest
 
         try
         {
-            eventAdmin.postEvent(new Event("a/b/c/d", (Dictionary)null));
+            eventAdmin.postEvent(new Event("a/b/c/d", (Dictionary) null));
 
             first.await();
 
             assertEquals(1, count.get());
 
-            eventAdmin.sendEvent(new Event("a/b/c", (Dictionary)null));
-            eventAdmin.sendEvent(new Event("a/b/c/d", (Dictionary)null));
-            eventAdmin.sendEvent(new Event("a/b/c/d/e", (Dictionary)null));
+            eventAdmin.sendEvent(new Event("a/b/c", (Dictionary) null));
+            eventAdmin.sendEvent(new Event("a/b/c/d", (Dictionary) null));
+            eventAdmin.sendEvent(new Event("a/b/c/d/e", (Dictionary) null));
 
             assertEquals(3, count.get());
         }
@@ -196,6 +189,12 @@ public class EventAdminImplTest
     @Test
     public void testRootWildcard() throws Exception
     {
+        assertNotNull(bundleContext);
+
+        ServiceReference easr = bundleContext.getServiceReference(EventAdmin.class.getName());
+        EventAdmin eventAdmin = (EventAdmin) bundleContext.getService(easr);
+        assertNotNull(eventAdmin);
+
         Dictionary<String, Object> properties = new Hashtable<String, Object>();
         properties.put(EventConstants.EVENT_TOPIC, "a/*");
 
@@ -225,15 +224,15 @@ public class EventAdminImplTest
 
         try
         {
-            eventAdmin.postEvent(new Event("a/b/c/d", (Dictionary)null));
+            eventAdmin.postEvent(new Event("a/b/c/d", (Dictionary) null));
 
             first.await();
 
             assertEquals(1, count.get());
 
-            eventAdmin.sendEvent(new Event("a/b/c", (Dictionary)null));
-            eventAdmin.sendEvent(new Event("a/b/c/d", (Dictionary)null));
-            eventAdmin.sendEvent(new Event("z/b/c/d", (Dictionary)null));
+            eventAdmin.sendEvent(new Event("a/b/c", (Dictionary) null));
+            eventAdmin.sendEvent(new Event("a/b/c/d", (Dictionary) null));
+            eventAdmin.sendEvent(new Event("z/b/c/d", (Dictionary) null));
 
             second.await();
 
@@ -248,8 +247,13 @@ public class EventAdminImplTest
     @Test
     public void testTimeout() throws Exception
     {
-        eventAdmin.setTimeout(100);
-        eventAdmin.setTimeUnit(TimeUnit.MILLISECONDS);
+        lowerTimeout();
+
+        assertNotNull(bundleContext);
+
+        ServiceReference easr = bundleContext.getServiceReference(EventAdmin.class.getName());
+        EventAdmin eventAdmin = (EventAdmin) bundleContext.getService(easr);
+        assertNotNull(eventAdmin);
 
         Dictionary<String, Object> properties = new Hashtable<String, Object>();
         properties.put(EventConstants.EVENT_TOPIC, "a/b/c/d");
@@ -287,16 +291,16 @@ public class EventAdminImplTest
 
         try
         {
-            eventAdmin.postEvent(new Event("a/b/c/d", (Dictionary)null));
+            eventAdmin.postEvent(new Event("a/b/c/d", (Dictionary) null));
 
             first.await();
 
             assertEquals(1, count.get());
 
-            eventAdmin.sendEvent(new Event("a/b/c/d", (Dictionary)null));
-            eventAdmin.sendEvent(new Event("a/b/c/d", (Dictionary)null));
-            eventAdmin.sendEvent(new Event("a/b/c/d", (Dictionary)null));
-            eventAdmin.sendEvent(new Event("a/b/c/d", (Dictionary)null));
+            eventAdmin.sendEvent(new Event("a/b/c/d", (Dictionary) null));
+            eventAdmin.sendEvent(new Event("a/b/c/d", (Dictionary) null));
+            eventAdmin.sendEvent(new Event("a/b/c/d", (Dictionary) null));
+            eventAdmin.sendEvent(new Event("a/b/c/d", (Dictionary) null));
 
             second.await();
 
@@ -312,6 +316,12 @@ public class EventAdminImplTest
     @Test
     public void testHammerEvent() throws Exception
     {
+        assertNotNull(bundleContext);
+
+        ServiceReference easr = bundleContext.getServiceReference(EventAdmin.class.getName());
+        final EventAdmin eventAdmin = (EventAdmin) bundleContext.getService(easr);
+        assertNotNull(eventAdmin);
+
         Dictionary<String, Object> properties = new Hashtable<String, Object>();
         properties.put(EventConstants.EVENT_TOPIC, "a/*");
 
@@ -357,12 +367,12 @@ public class EventAdminImplTest
                 {
                     public void run()
                     {
-                        eventAdmin.postEvent(new Event("a/b/" + msgID, (Dictionary)null));
+                        eventAdmin.postEvent(new Event("a/b/" + msgID, (Dictionary) null));
 
-                        eventAdmin.sendEvent(new Event("a/b/c/" + msgID, (Dictionary)null));
-                        eventAdmin.postEvent(new Event("a/b/c/d/" + msgID, (Dictionary)null));
-                        eventAdmin.sendEvent(new Event("z/b/c/d/" + msgID, (Dictionary)null));
-                        eventAdmin.postEvent(new Event("a/b/c/d/e/" + msgID, (Dictionary)null));
+                        eventAdmin.sendEvent(new Event("a/b/c/" + msgID, (Dictionary) null));
+                        eventAdmin.postEvent(new Event("a/b/c/d/" + msgID, (Dictionary) null));
+                        eventAdmin.sendEvent(new Event("z/b/c/d/" + msgID, (Dictionary) null));
+                        eventAdmin.postEvent(new Event("a/b/c/d/e/" + msgID, (Dictionary) null));
 
                         sthreads.add(Thread.currentThread());
                     }
@@ -387,24 +397,23 @@ public class EventAdminImplTest
         }
     }
 
-    @Before
-    public void before()
+    /**
+     * Override this method to lower the timeout of the tested implementation
+     * of the event admin service.
+     */
+    protected void lowerTimeout()
     {
-        executor = Executors.newFixedThreadPool(5);
-        hammer = Executors.newFixedThreadPool(16);
-        scheduledExecutor = Executors.newScheduledThreadPool(2);
-        eventAdmin = new EventAdminImpl(bundleContext, executor, scheduledExecutor);
+    }
 
-        eventAdmin.start();
+    @Before
+    public void baseBefore()
+    {
+        hammer = Executors.newFixedThreadPool(16);
     }
 
     @After
-    public void after()
+    public void baseAfter()
     {
-        eventAdmin.stop();
-
         hammer.shutdown();
-        executor.shutdown();
-        scheduledExecutor.shutdown();
     }
 }
