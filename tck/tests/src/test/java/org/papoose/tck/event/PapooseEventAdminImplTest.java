@@ -32,8 +32,6 @@ import static org.ops4j.pax.exam.CoreOptions.options;
 import static org.ops4j.pax.exam.CoreOptions.provision;
 import static org.ops4j.pax.exam.MavenUtils.asInProject;
 import org.ops4j.pax.exam.Option;
-import static org.ops4j.pax.exam.container.def.PaxRunnerOptions.compendiumProfile;
-import static org.ops4j.pax.exam.container.def.PaxRunnerOptions.vmOption;
 import org.ops4j.pax.exam.junit.Configuration;
 import org.ops4j.pax.exam.junit.JUnit4TestRunner;
 import org.osgi.framework.ServiceRegistration;
@@ -61,14 +59,6 @@ public class PapooseEventAdminImplTest extends BaseEventAdminImplTest
                 felix(),
                 knopflerfish(),
                 // papoose(),
-                compendiumProfile(),
-                vmOption("-Xmx1024M"),
-                //vmOption("-Xmx1024M -Xrunjdwp:transport=dt_socket,server=y,suspend=y,address=5005"),
-                // this is necessary to let junit runner not timout the remote process before attaching debugger
-                // setting timeout to 0 means wait as long as the remote service comes available.
-                // starting with version 0.5.0 of PAx Exam this is no longer required as by default the framework tests
-                // will not be triggered till the framework is not started
-                // waitForFrameworkStartup()
                 provision(
                         mavenBundle().groupId("org.papoose.cmpn").artifactId("papoose-event").version(asInProject())
                 )

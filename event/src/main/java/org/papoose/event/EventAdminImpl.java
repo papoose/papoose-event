@@ -16,9 +16,7 @@
  */
 package org.papoose.event;
 
-import java.util.Collections;
 import java.util.Dictionary;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Hashtable;
 import java.util.Map;
@@ -342,22 +340,31 @@ public class EventAdminImpl implements EventAdmin
 
             for (int i = 0; i < tokens.length - 1; i++)
             {
-                synchronized (lPtr.listeners)
+                synchronized (lPtr.children)
                 {
-                    Listeners check = lPtr.listeners.get(tokens[i]);
-                    if (check == null) lPtr.listeners.put(tokens[i], check = new Listeners());
+                    Listeners check = lPtr.children.get(tokens[i]);
+                    if (check == null) lPtr.children.put(tokens[i], check = new Listeners());
                     lPtr = check;
                 }
             }
 
             String token = tokens[tokens.length - 1];
-            if ("*".equals(token)) token = null;
-
-            synchronized (lPtr.handlers)
+            if ("*".equals(token))
             {
-                Set<EventListener> set = lPtr.handlers.get(token);
-                if (set == null) lPtr.handlers.put(token, set = new HashSet<EventListener>());
-                set.add(listener);
+                synchronized (lPtr.handlers)
+                {
+                    lPtr.wildcards.add(listener);
+                }
+            }
+            else
+            {
+                synchronized (lPtr.handlers)
+                {
+                    Listeners check = lPtr.children.get(token);
+                    if (check == null) lPtr.children.put(token, check = new Listeners());
+
+                    check.handlers.add(listener);
+                }
             }
         }
 
@@ -376,16 +383,28 @@ public class EventAdminImpl implements EventAdmin
 
             for (int i = 0; i < tokens.length - 1; i++)
             {
-                lPtr = lPtr.listeners.get(tokens[i]);
+                lPtr = lPtr.children.get(tokens[i]);
                 if (lPtr == null) return;
             }
 
             String token = tokens[tokens.length - 1];
-            if ("*".equals(token)) token = null;
+            if ("*".equals(token))
+            {
+                synchronized (lPtr.handlers)
+                {
+                    lPtr.wildcards.remove(listener);
+                }
+            }
+            else
+            {
+                synchronized (lPtr.handlers)
+                {
+                    Listeners check = lPtr.children.get(token);
+                    if (check == null) lPtr.children.put(token, check = new Listeners());
 
-            Set<EventListener> set = lPtr.handlers.get(token);
-            if (set == null) return;
-            set.remove(listener);
+                    check.handlers.remove(listener);
+                }
+            }
         }
 
         LOGGER.exiting(CLASS_NAME, "remove");
@@ -401,16 +420,22 @@ public class EventAdminImpl implements EventAdmin
         String[] tokens = event.getTopic().split("/");
         for (int i = 0; i < tokens.length - 1; i++)
         {
-            addListeners(set, lPtr.handlers.get(null), event);
+            addListeners(set, lPtr.wildcards, event);
 
-            lPtr = lPtr.listeners.get(tokens[i]);
+            lPtr = lPtr.children.get(tokens[i]);
             if (lPtr == null) break;
         }
 
         if (lPtr != null)
         {
-            addListeners(set, lPtr.handlers.get(null), event);
-            addListeners(set, lPtr.handlers.get(tokens[tokens.length - 1]), event);
+            addListeners(set, lPtr.wildcards, event);
+
+            lPtr = lPtr.children.get(tokens[tokens.length - 1]);
+            if (lPtr != null)
+            {
+                addListeners(set, lPtr.wildcards, event);
+                addListeners(set, lPtr.handlers, event);
+            }
         }
 
         LOGGER.exiting(CLASS_NAME, "collectListeners", set);
@@ -447,6 +472,9 @@ public class EventAdminImpl implements EventAdmin
 
         TimeoutRunnable(CountDownLatch latch, EventListener listener, Event event)
         {
+            assert listener != null;
+            assert event != null;
+
             this.latch = latch;
             this.listener = listener;
             this.event = event;
@@ -462,7 +490,7 @@ public class EventAdminImpl implements EventAdmin
                     public void run()
                     {
                         loggers.log(listener.reference, LogService.LOG_WARNING, "Listener timeout, will be blacklisted");
-                        LOGGER.warning("Listener timeout, will be blacklisted");
+                        LOGGER.warning("Listener timeout, " + listener.reference + " will be blacklisted");
 
                         remove(listener);
                     }
@@ -496,8 +524,9 @@ public class EventAdminImpl implements EventAdmin
 
     private static class Listeners
     {
-        private final Map<String, Listeners> listeners = new Hashtable<String, Listeners>();
-        private final Map<String, Set<EventListener>> handlers = Collections.synchronizedMap(new HashMap<String, Set<EventListener>>());
+        private final Map<String, Listeners> children = new Hashtable<String, Listeners>();
+        private final Set<EventListener> handlers = new HashSet<EventListener>();
+        private final Set<EventListener> wildcards = new HashSet<EventListener>();
     }
 
     private class EventListener implements EventHandler
@@ -510,6 +539,10 @@ public class EventAdminImpl implements EventAdmin
 
         private EventListener(String[][] paths, ServiceReference reference, EventHandler handler, String filter) throws InvalidSyntaxException
         {
+            assert paths != null;
+            assert reference != null;
+            assert handler != null;
+
             this.executor = new SerialExecutor(EventAdminImpl.this.executor);
             this.paths = paths;
             this.reference = reference;

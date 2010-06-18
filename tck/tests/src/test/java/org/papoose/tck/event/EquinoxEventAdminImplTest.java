@@ -19,15 +19,11 @@ package org.papoose.tck.event;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import static org.ops4j.pax.exam.CoreOptions.equinox;
-import static org.ops4j.pax.exam.CoreOptions.felix;
-import static org.ops4j.pax.exam.CoreOptions.knopflerfish;
 import static org.ops4j.pax.exam.CoreOptions.mavenBundle;
 import static org.ops4j.pax.exam.CoreOptions.options;
 import static org.ops4j.pax.exam.CoreOptions.provision;
-import static org.ops4j.pax.exam.CoreOptions.systemProperty;
 import static org.ops4j.pax.exam.MavenUtils.asInProject;
 import org.ops4j.pax.exam.Option;
-import org.ops4j.pax.exam.junit.AppliesTo;
 import org.ops4j.pax.exam.junit.Configuration;
 import org.ops4j.pax.exam.junit.JUnit4TestRunner;
 
@@ -36,40 +32,31 @@ import org.ops4j.pax.exam.junit.JUnit4TestRunner;
  * @version $Revision: $ $Date: $
  */
 @RunWith(JUnit4TestRunner.class)
-public class FelixEventAdminImplTest extends BaseEventAdminImplTest
+public class EquinoxEventAdminImplTest extends BaseEventAdminImplTest
 {
     @Configuration
     public static Option[] configure()
     {
         return options(
                 equinox(),
-                felix(),
-                knopflerfish(),
-                // papoose(),
                 provision(
-                        mavenBundle().groupId("org.apache.felix").artifactId("org.apache.felix.eventadmin").version(asInProject())
+                        mavenBundle().groupId("org.eclipse.equinox").artifactId("event").version(asInProject())
                 )
         );
     }
 
-    @Configuration
-    @AppliesTo("testTimeout")
-    public static Option[] configureTestTimeout()
-    {
-        return options(
-                systemProperty("org.apache.felix.eventadmin.Timeout").value("200")
-        );
-    }
-
+    /**
+     * Not sure if Equinox EventAdmin listeners can timeout.
+     */
+    @Override
     @Test
-    public void testWildcard()
+    public void testTimeout()
     {
-        // https://issues.apache.org/jira/browse/FELIX-2422
     }
 
+    @Override
     @Test
     public void testHammerEvent()
-    {
-        // https://issues.apache.org/jira/browse/FELIX-2413
+    {        
     }
 }

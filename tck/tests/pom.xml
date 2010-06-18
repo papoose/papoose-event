@@ -60,8 +60,8 @@
 
         <dependency>
             <groupId>org.eclipse.equinox</groupId>
-            <artifactId>log</artifactId>
-            <version>1.0.100-v20070226</version>
+            <artifactId>event</artifactId>
+            <version>1.0.100-v20070516</version>
             <scope>test</scope>
         </dependency>
 

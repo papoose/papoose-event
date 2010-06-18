@@ -17,10 +17,13 @@
 package org.papoose.tck.event;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Dictionary;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Hashtable;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
@@ -37,6 +40,7 @@ import org.ops4j.pax.exam.Inject;
 import org.ops4j.pax.exam.Option;
 import static org.ops4j.pax.exam.container.def.PaxRunnerOptions.compendiumProfile;
 import static org.ops4j.pax.exam.container.def.PaxRunnerOptions.vmOption;
+import org.ops4j.pax.exam.junit.AppliesTo;
 import org.ops4j.pax.exam.junit.Configuration;
 import org.osgi.framework.BundleContext;
 import org.osgi.framework.ServiceReference;
@@ -60,9 +64,8 @@ public abstract class BaseEventAdminImplTest
     public static Option[] baseConfigure()
     {
         return options(
-                compendiumProfile(),
-                vmOption("-Xmx1024M")
-                //vmOption("-Xmx1024M -Xrunjdwp:transport=dt_socket,server=y,suspend=y,address=5005"),
+                compendiumProfile()
+                // vmOption("-Xmx1024M -Xrunjdwp:transport=dt_socket,server=y,suspend=y,address=5005")
                 // this is necessary to let junit runner not timout the remote process before attaching debugger
                 // setting timeout to 0 means wait as long as the remote service comes available.
                 // starting with version 0.5.0 of PAx Exam this is no longer required as by default the framework tests
@@ -71,7 +74,16 @@ public abstract class BaseEventAdminImplTest
         );
     }
 
-    @Test
+    @Configuration
+    @AppliesTo("testHammerEvent")
+    public static Option[] baseConfigureTestTimeout()
+    {
+        return options(
+                vmOption("-Xmx1024M")
+        );
+    }
+
+    @Test(timeout = 300000)
     public void testSingleEvent() throws Exception
     {
         assertNotNull(bundleContext);
@@ -130,7 +142,7 @@ public abstract class BaseEventAdminImplTest
         }
     }
 
-    @Test
+    @Test(timeout = 300000)
     public void testWildcard() throws Exception
     {
         assertNotNull(bundleContext);
@@ -143,7 +155,7 @@ public abstract class BaseEventAdminImplTest
         properties.put(EventConstants.EVENT_TOPIC, "a/b/c/*");
 
         final CountDownLatch first = new CountDownLatch(1);
-        final CountDownLatch second = new CountDownLatch(4);
+        final CountDownLatch second = new CountDownLatch(3);
         final AtomicInteger count = new AtomicInteger();
         ServiceRegistration sr = bundleContext.registerService(EventHandler.class.getName(), new EventHandler()
         {
@@ -174,11 +186,14 @@ public abstract class BaseEventAdminImplTest
 
             assertEquals(1, count.get());
 
+            eventAdmin.sendEvent(new Event("a/b", (Dictionary) null));
             eventAdmin.sendEvent(new Event("a/b/c", (Dictionary) null));
             eventAdmin.sendEvent(new Event("a/b/c/d", (Dictionary) null));
             eventAdmin.sendEvent(new Event("a/b/c/d/e", (Dictionary) null));
 
-            assertEquals(3, count.get());
+            second.await();
+
+            assertEquals(4, count.get());
         }
         finally
         {
@@ -186,7 +201,7 @@ public abstract class BaseEventAdminImplTest
         }
     }
 
-    @Test
+    @Test(timeout = 300000)
     public void testRootWildcard() throws Exception
     {
         assertNotNull(bundleContext);
@@ -244,7 +259,7 @@ public abstract class BaseEventAdminImplTest
         }
     }
 
-    @Test
+    @Test(timeout = 300000)
     public void testTimeout() throws Exception
     {
         lowerTimeout();
@@ -313,7 +328,7 @@ public abstract class BaseEventAdminImplTest
         }
     }
 
-    @Test
+    @Test(timeout = 300000)
     public void testHammerEvent() throws Exception
     {
         assertNotNull(bundleContext);
@@ -326,20 +341,20 @@ public abstract class BaseEventAdminImplTest
         properties.put(EventConstants.EVENT_TOPIC, "a/*");
 
         final int MAX_LISTENERS = 128;
-        final int MAX_MESSAGES = 1024;
-        final CountDownLatch latch = new CountDownLatch(4 * MAX_LISTENERS * MAX_MESSAGES);
+        final int MAX_MESSENGERS = 1024;
+        final CountDownLatch latch = new CountDownLatch(4 * MAX_LISTENERS * MAX_MESSENGERS);
         ServiceRegistration[] registrations = new ServiceRegistration[MAX_LISTENERS];
         final List<Event>[] events = new List[MAX_LISTENERS];
-        final Set<Thread> rthreads = new HashSet<Thread>();
+        final Set<Thread> rthreads = Collections.synchronizedSet(new HashSet<Thread>());
         final Set<Thread>[] rthread = new Set[MAX_LISTENERS];
         final Set<Thread> sthreads = new HashSet<Thread>();
 
-        for (int i = 0; i < MAX_LISTENERS; i++)
+        for (int listener = 0; listener < MAX_LISTENERS; listener++)
         {
-            final int myIndex = i;
-            events[i] = new ArrayList<Event>();
-            rthread[i] = new HashSet<Thread>();
-            registrations[i] = bundleContext.registerService(EventHandler.class.getName(), new EventHandler()
+            final int myIndex = listener;
+            events[listener] = Collections.synchronizedList(new ArrayList<Event>());
+            rthread[listener] = Collections.synchronizedSet(new HashSet<Thread>());
+            registrations[listener] = bundleContext.registerService(EventHandler.class.getName(), new EventHandler()
             {
                 public void handleEvent(Event event)
                 {
@@ -360,19 +375,19 @@ public abstract class BaseEventAdminImplTest
         try
         {
 
-            for (int i = 0; i < MAX_MESSAGES; i++)
+            for (int messenger = 0; messenger < MAX_MESSENGERS; messenger++)
             {
-                final int msgID = i;
+                final int messengerId = messenger;
                 hammer.execute(new Runnable()
                 {
                     public void run()
                     {
-                        eventAdmin.postEvent(new Event("a/b/" + msgID, (Dictionary) null));
+                        eventAdmin.postEvent(new Event("a/b/" + messengerId, (Dictionary) null));
 
-                        eventAdmin.sendEvent(new Event("a/b/c/" + msgID, (Dictionary) null));
-                        eventAdmin.postEvent(new Event("a/b/c/d/" + msgID, (Dictionary) null));
-                        eventAdmin.sendEvent(new Event("z/b/c/d/" + msgID, (Dictionary) null));
-                        eventAdmin.postEvent(new Event("a/b/c/d/e/" + msgID, (Dictionary) null));
+                        eventAdmin.sendEvent(new Event("a/b/c/" + messengerId, (Dictionary) null));
+                        eventAdmin.postEvent(new Event("a/b/c/d/" + messengerId, (Dictionary) null));
+                        eventAdmin.sendEvent(new Event("z/b/c/d/" + messengerId, (Dictionary) null));
+                        eventAdmin.postEvent(new Event("a/b/c/d/e/" + messengerId, (Dictionary) null));
 
                         sthreads.add(Thread.currentThread());
                     }
@@ -381,13 +396,41 @@ public abstract class BaseEventAdminImplTest
 
             latch.await();
 
-            for (int i = 0; i < MAX_MESSAGES; i++)
+            for (int listener = 0; listener < MAX_LISTENERS; listener++)
             {
-                Event event = events[0].get(i);
-
-                for (int j = 0; j < MAX_LISTENERS; j++)
+                Map<Integer, List<Event>> sorted = new HashMap<Integer, List<Event>>();
+                for (int message = 0; message < MAX_MESSENGERS * 4; message++)
                 {
-                    assertEquals("Events should match and be in the same order", event, events[j].get(i));
+                    Event event = events[listener].get(message);
+                    String[] tokens = event.getTopic().split("/");
+
+                    Integer messengerId = Integer.parseInt(tokens[tokens.length - 1]);
+
+                    List<Event> list = sorted.get(messengerId);
+                    if (list == null) sorted.put(messengerId, list = new ArrayList<Event>());
+                    list.add(event);
+                }
+
+                for (int messengerId = 0; messengerId < MAX_MESSENGERS; messengerId++)
+                {
+                    List<Event> list = sorted.get(messengerId);
+
+                    assertEquals("All listeners should have the same number of events for " + messengerId, 4, list.size());
+
+                    assertEquals("Events from the same source should be in the same order for " + listener, new Event("a/b/" + messengerId, (Dictionary) null), list.get(0));
+                    assertEquals("Events from the same source should be in the same order for " + listener, new Event("a/b/c/" + messengerId, (Dictionary) null), list.get(1));
+                    assertEquals("Events from the same source should be in the same order for " + listener, new Event("a/b/c/d/" + messengerId, (Dictionary) null), list.get(2));
+                    assertEquals("Events from the same source should be in the same order for " + listener, new Event("a/b/c/d/e/" + messengerId, (Dictionary) null), list.get(3));
+                }
+            }
+
+            for (int message = 0; message < MAX_MESSENGERS * 4; message++)
+            {
+                Event event = events[0].get(message);
+
+                for (int listener = 0; listener < MAX_LISTENERS; listener++)
+                {
+                    assertEquals("Event[" + message + "] should match and be in the same order for " + listener, event, events[listener].get(message));
                 }
             }
         }
