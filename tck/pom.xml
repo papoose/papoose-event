@@ -13,6 +13,7 @@
     <name>Papoose :: OSGi TCK</name>
 
     <modules>
+        <module>bundles</module>
         <module>tests</module>
     </modules>
 
@@ -79,7 +80,7 @@
             </dependency>
 
             <dependency>
-                <groupId>org.papoose.cmpn.tck.bundles</groupId>
+                <groupId>org.papoose.cmpn.tck.bundles.event</groupId>
                 <artifactId>bundle</artifactId>
                 <version>${project.version}</version>
             </dependency>

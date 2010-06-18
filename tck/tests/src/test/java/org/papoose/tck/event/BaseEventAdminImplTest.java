@@ -31,17 +31,23 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static junit.framework.Assert.assertEquals;
+import static junit.framework.Assert.assertNull;
 import org.junit.After;
+import org.junit.Assert;
 import static org.junit.Assert.assertNotNull;
 import org.junit.Before;
 import org.junit.Test;
+import static org.ops4j.pax.exam.CoreOptions.mavenBundle;
 import static org.ops4j.pax.exam.CoreOptions.options;
+import static org.ops4j.pax.exam.CoreOptions.provision;
 import org.ops4j.pax.exam.Inject;
+import static org.ops4j.pax.exam.MavenUtils.asInProject;
 import org.ops4j.pax.exam.Option;
 import static org.ops4j.pax.exam.container.def.PaxRunnerOptions.compendiumProfile;
 import static org.ops4j.pax.exam.container.def.PaxRunnerOptions.vmOption;
 import org.ops4j.pax.exam.junit.AppliesTo;
 import org.ops4j.pax.exam.junit.Configuration;
+import org.osgi.framework.Bundle;
 import org.osgi.framework.BundleContext;
 import org.osgi.framework.ServiceReference;
 import org.osgi.framework.ServiceRegistration;
@@ -49,6 +55,9 @@ import org.osgi.service.event.Event;
 import org.osgi.service.event.EventAdmin;
 import org.osgi.service.event.EventConstants;
 import org.osgi.service.event.EventHandler;
+
+import org.papoose.test.bundles.share.Share;
+import org.papoose.test.bundles.share.ShareListener;
 
 
 /**
@@ -59,18 +68,24 @@ public abstract class BaseEventAdminImplTest
     @Inject
     protected BundleContext bundleContext = null;
     private ExecutorService hammer;
+    protected ServiceReference shareReference;
+    protected Share share;
 
     @Configuration
     public static Option[] baseConfigure()
     {
         return options(
-                compendiumProfile()
-                // vmOption("-Xmx1024M -Xrunjdwp:transport=dt_socket,server=y,suspend=y,address=5005")
+                compendiumProfile(),
+                // vmOption("-Xmx1024M -Xrunjdwp:transport=dt_socket,server=y,suspend=y,address=5005"),
                 // this is necessary to let junit runner not timout the remote process before attaching debugger
                 // setting timeout to 0 means wait as long as the remote service comes available.
                 // starting with version 0.5.0 of PAx Exam this is no longer required as by default the framework tests
                 // will not be triggered till the framework is not started
                 // waitForFrameworkStartup()
+                provision(
+                        mavenBundle().groupId("org.papoose.cmpn.tck.bundles.event").artifactId("bundle").version(asInProject()).start(false),
+                        mavenBundle().groupId("org.papoose.test.bundles").artifactId("test-share").version(asInProject())
+                )
         );
     }
 
@@ -531,6 +546,58 @@ public abstract class BaseEventAdminImplTest
         }
     }
 
+    @Test
+    public void testBundleUnregsiter() throws Exception
+    {
+        final Map<String, Object> state = new HashMap<String, Object>();
+        share.addListener(new ShareListener()
+        {
+            public void get(String key, Object value)
+            {
+            }
+
+            public void put(String key, Object value)
+            {
+                state.put(key, value);
+            }
+
+            public void clear()
+            {
+            }
+        });
+        Bundle test = null;
+        for (Bundle b : bundleContext.getBundles())
+        {
+            if ("org.papoose.cmpn.tck.bundle".equals(b.getSymbolicName()))
+            {
+                test = b;
+                break;
+            }
+        }
+
+        assertNotNull(test);
+
+        test.start();
+
+        ServiceReference easr = bundleContext.getServiceReference(EventAdmin.class.getName());
+        final EventAdmin eventAdmin = (EventAdmin) bundleContext.getService(easr);
+        assertNotNull(eventAdmin);
+
+        eventAdmin.sendEvent(new Event("test/event", (Dictionary) null));
+
+        Event event = (Event) state.get("EVENT");
+        assertNotNull(event);
+        Assert.assertEquals("test/event", event.getTopic());
+
+        state.clear();
+        test.stop();
+        test.uninstall();
+
+        eventAdmin.sendEvent(new Event("test/event", (Dictionary) null));
+
+        assertNull(state.get("EVENT"));
+    }
+
     /**
      * Override this method to lower the timeout of the tested implementation
      * of the event admin service.
@@ -543,11 +610,16 @@ public abstract class BaseEventAdminImplTest
     public void baseBefore()
     {
         hammer = Executors.newFixedThreadPool(16);
+        shareReference = bundleContext.getServiceReference(Share.class.getName());
+        share = (Share) bundleContext.getService(shareReference);
     }
 
     @After
     public void baseAfter()
     {
         hammer.shutdown();
+        bundleContext.ungetService(shareReference);
+        shareReference = null;
+        share = null;
     }
 }

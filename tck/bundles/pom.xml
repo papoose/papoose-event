@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project>
+    <parent>
+        <groupId>org.papoose.cmpn.tck</groupId>
+        <artifactId>tck</artifactId>
+        <version>1.0-SNAPSHOT</version>
+    </parent>
+
+    <modelVersion>4.0.0</modelVersion>
+    <groupId>org.papoose.cmpn.tck.bundles.event</groupId>
+    <artifactId>bundles</artifactId>
+    <packaging>pom</packaging>
+    <name>Papoose :: OSGi TCK :: Bundles</name>
+
+    <modules>
+        <module>bundle</module>
+    </modules>
+
+</project>
+

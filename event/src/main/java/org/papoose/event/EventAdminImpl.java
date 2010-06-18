@@ -189,7 +189,7 @@ public class EventAdminImpl implements EventAdmin
                 {
                     for (final EventListener listener : set)
                     {
-                        listener.executor.execute(new TimeoutRunnable(latch, listener, event));
+                        executor.execute(new TimeoutRunnable(latch, listener, event));
                     }
                 }
             }

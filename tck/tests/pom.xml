@@ -100,8 +100,14 @@
         </dependency>
 
         <dependency>
-            <groupId>org.papoose.cmpn.tck.bundles</groupId>
+            <groupId>org.papoose.cmpn.tck.bundles.event</groupId>
             <artifactId>bundle</artifactId>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>org.papoose.test.bundles</groupId>
+            <artifactId>test-share</artifactId>
             <scope>test</scope>
         </dependency>
 
