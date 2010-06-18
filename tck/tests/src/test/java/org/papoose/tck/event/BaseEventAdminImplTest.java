@@ -75,7 +75,7 @@ public abstract class BaseEventAdminImplTest
     }
 
     @Configuration
-    @AppliesTo("testHammerEvent")
+    @AppliesTo({ "testMessageOrdering", "testHammerEvent" })
     public static Option[] baseConfigureTestTimeout()
     {
         return options(
@@ -329,6 +329,108 @@ public abstract class BaseEventAdminImplTest
     }
 
     @Test(timeout = 300000)
+    public void testMessageOrdering() throws Exception
+    {
+        assertNotNull(bundleContext);
+
+        ServiceReference easr = bundleContext.getServiceReference(EventAdmin.class.getName());
+        final EventAdmin eventAdmin = (EventAdmin) bundleContext.getService(easr);
+        assertNotNull(eventAdmin);
+
+        Dictionary<String, Object> properties = new Hashtable<String, Object>();
+        properties.put(EventConstants.EVENT_TOPIC, "a/*");
+
+        final int MAX_LISTENERS = 128;
+        final int MAX_MESSENGERS = 1024;
+        final CountDownLatch latch = new CountDownLatch(4 * MAX_LISTENERS * MAX_MESSENGERS);
+        ServiceRegistration[] registrations = new ServiceRegistration[MAX_LISTENERS];
+        final List<Event>[] events = new List[MAX_LISTENERS];
+        final Set<Thread> rthreads = Collections.synchronizedSet(new HashSet<Thread>());
+        final Set<Thread>[] rthread = new Set[MAX_LISTENERS];
+        final Set<Thread> sthreads = new HashSet<Thread>();
+
+        for (int listener = 0; listener < MAX_LISTENERS; listener++)
+        {
+            final int myIndex = listener;
+            events[listener] = Collections.synchronizedList(new ArrayList<Event>());
+            rthread[listener] = Collections.synchronizedSet(new HashSet<Thread>());
+            registrations[listener] = bundleContext.registerService(EventHandler.class.getName(), new EventHandler()
+            {
+                public synchronized void handleEvent(Event event)
+                {
+                    try
+                    {
+                        events[myIndex].add(event);
+                        rthreads.add(Thread.currentThread());
+                        rthread[myIndex].add(Thread.currentThread());
+                    }
+                    finally
+                    {
+                        latch.countDown();
+                    }
+                }
+            }, properties);
+        }
+
+        try
+        {
+
+            for (int messenger = 0; messenger < MAX_MESSENGERS; messenger++)
+            {
+                eventAdmin.postEvent(new Event("a/b/" + messenger, (Dictionary) null));
+                eventAdmin.postEvent(new Event("a/b/c/" + messenger, (Dictionary) null));
+                eventAdmin.postEvent(new Event("a/b/c/d/" + messenger, (Dictionary) null));
+                eventAdmin.postEvent(new Event("z/b/c/d/" + messenger, (Dictionary) null));
+                eventAdmin.postEvent(new Event("a/b/c/d/e/" + messenger, (Dictionary) null));
+            }
+
+            latch.await();
+
+            for (int listener = 0; listener < MAX_LISTENERS; listener++)
+            {
+                Map<Integer, List<Event>> sorted = new HashMap<Integer, List<Event>>();
+                for (int message = 0; message < MAX_MESSENGERS * 4; message++)
+                {
+                    Event event = events[listener].get(message);
+                    String[] tokens = event.getTopic().split("/");
+
+                    Integer messengerId = Integer.parseInt(tokens[tokens.length - 1]);
+
+                    List<Event> list = sorted.get(messengerId);
+                    if (list == null) sorted.put(messengerId, list = new ArrayList<Event>());
+                    list.add(event);
+                }
+
+                for (int messengerId = 0; messengerId < MAX_MESSENGERS; messengerId++)
+                {
+                    List<Event> list = sorted.get(messengerId);
+
+                    assertEquals("All listeners should have the same number of events for " + messengerId, 4, list.size());
+
+                    assertEquals("Events from the same source should be in the same order for " + listener, new Event("a/b/" + messengerId, (Dictionary) null), list.get(0));
+                    assertEquals("Events from the same source should be in the same order for " + listener, new Event("a/b/c/" + messengerId, (Dictionary) null), list.get(1));
+                    assertEquals("Events from the same source should be in the same order for " + listener, new Event("a/b/c/d/" + messengerId, (Dictionary) null), list.get(2));
+                    assertEquals("Events from the same source should be in the same order for " + listener, new Event("a/b/c/d/e/" + messengerId, (Dictionary) null), list.get(3));
+                }
+            }
+
+            for (int message = 0; message < MAX_MESSENGERS * 4; message++)
+            {
+                Event event = events[0].get(message);
+
+                for (int listener = 0; listener < MAX_LISTENERS; listener++)
+                {
+                    assertEquals("Event[" + message + "] should match and be in the same order for " + listener, event, events[listener].get(message));
+                }
+            }
+        }
+        finally
+        {
+            for (int i = 0; i < MAX_LISTENERS; i++) registrations[i].unregister();
+        }
+    }
+
+    @Test(timeout = 300000)
     public void testHammerEvent() throws Exception
     {
         assertNotNull(bundleContext);
@@ -383,10 +485,9 @@ public abstract class BaseEventAdminImplTest
                     public void run()
                     {
                         eventAdmin.postEvent(new Event("a/b/" + messengerId, (Dictionary) null));
-
-                        eventAdmin.sendEvent(new Event("a/b/c/" + messengerId, (Dictionary) null));
+                        eventAdmin.postEvent(new Event("a/b/c/" + messengerId, (Dictionary) null));
                         eventAdmin.postEvent(new Event("a/b/c/d/" + messengerId, (Dictionary) null));
-                        eventAdmin.sendEvent(new Event("z/b/c/d/" + messengerId, (Dictionary) null));
+                        eventAdmin.postEvent(new Event("z/b/c/d/" + messengerId, (Dictionary) null));
                         eventAdmin.postEvent(new Event("a/b/c/d/e/" + messengerId, (Dictionary) null));
 
                         sthreads.add(Thread.currentThread());
@@ -421,16 +522,6 @@ public abstract class BaseEventAdminImplTest
                     assertEquals("Events from the same source should be in the same order for " + listener, new Event("a/b/c/" + messengerId, (Dictionary) null), list.get(1));
                     assertEquals("Events from the same source should be in the same order for " + listener, new Event("a/b/c/d/" + messengerId, (Dictionary) null), list.get(2));
                     assertEquals("Events from the same source should be in the same order for " + listener, new Event("a/b/c/d/e/" + messengerId, (Dictionary) null), list.get(3));
-                }
-            }
-
-            for (int message = 0; message < MAX_MESSENGERS * 4; message++)
-            {
-                Event event = events[0].get(message);
-
-                for (int listener = 0; listener < MAX_LISTENERS; listener++)
-                {
-                    assertEquals("Event[" + message + "] should match and be in the same order for " + listener, event, events[listener].get(message));
                 }
             }
         }

@@ -53,10 +53,4 @@ public class EquinoxEventAdminImplTest extends BaseEventAdminImplTest
     public void testTimeout()
     {
     }
-
-    @Override
-    @Test
-    public void testHammerEvent()
-    {        
-    }
 }

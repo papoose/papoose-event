@@ -66,10 +66,4 @@ public class FelixEventAdminImplTest extends BaseEventAdminImplTest
     {
         // https://issues.apache.org/jira/browse/FELIX-2422
     }
-
-    @Test
-    public void testHammerEvent()
-    {
-        // https://issues.apache.org/jira/browse/FELIX-2413
-    }
 }
