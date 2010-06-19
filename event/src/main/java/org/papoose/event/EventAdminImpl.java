@@ -33,9 +33,13 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import org.osgi.framework.BundleContext;
+import org.osgi.framework.BundleListener;
 import org.osgi.framework.Filter;
+import org.osgi.framework.FrameworkListener;
 import org.osgi.framework.InvalidSyntaxException;
+import org.osgi.framework.ServiceListener;
 import org.osgi.framework.ServiceReference;
+import org.osgi.framework.ServiceRegistration;
 import org.osgi.service.event.Event;
 import org.osgi.service.event.EventAdmin;
 import org.osgi.service.event.EventConstants;
@@ -64,6 +68,12 @@ public class EventAdminImpl implements EventAdmin
 
         public boolean matchCase(Dictionary dictionary) { return true; }
     };
+    private final FrameworkEventMapper frameworkEventMapper = new FrameworkEventMapper(this);
+    private volatile ServiceRegistration frameworkServiceRegistration;
+    private final BundleEventMapper bundleEventMapper = new BundleEventMapper(this);
+    private volatile ServiceRegistration bundleServiceRegistration;
+    private final ServiceEventMapper serviceEventMapper = new ServiceEventMapper(this);
+    private volatile ServiceRegistration serviceServiceRegistration;
     private final Listeners listeners = new Listeners();
     private final Semaphore semaphore = new Semaphore(1);
     private final BundleContext context;
@@ -71,8 +81,8 @@ public class EventAdminImpl implements EventAdmin
     private final ExecutorService executor;
     private final ScheduledExecutorService scheduledExecutor;
     private final LogServiceTracker loggers;
-    private int timeout = 60;
-    private TimeUnit timeUnit = TimeUnit.SECONDS;
+    private volatile int timeout = 60;
+    private volatile TimeUnit timeUnit = TimeUnit.SECONDS;
 
     public EventAdminImpl(BundleContext context, ExecutorService executor, ScheduledExecutorService scheduledExecutor)
     {
@@ -129,10 +139,21 @@ public class EventAdminImpl implements EventAdmin
     {
         tracker.open();
         loggers.open();
+
+        frameworkServiceRegistration = context.registerService(FrameworkListener.class.getName(), frameworkEventMapper, null);
+        bundleServiceRegistration = context.registerService(BundleListener.class.getName(), bundleEventMapper, null);
+        serviceServiceRegistration = context.registerService(ServiceListener.class.getName(), serviceEventMapper, null);
     }
 
     public void stop()
     {
+        serviceServiceRegistration.unregister();
+        serviceServiceRegistration = null;
+        bundleServiceRegistration.unregister();
+        bundleServiceRegistration = null;
+        frameworkServiceRegistration.unregister();
+        frameworkServiceRegistration = null;
+
         tracker.close();
         loggers.close();
     }
