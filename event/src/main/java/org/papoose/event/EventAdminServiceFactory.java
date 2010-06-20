@@ -32,11 +32,13 @@ import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import org.osgi.framework.Bundle;
 import org.osgi.framework.BundleContext;
 import org.osgi.framework.BundleListener;
 import org.osgi.framework.Filter;
 import org.osgi.framework.FrameworkListener;
 import org.osgi.framework.InvalidSyntaxException;
+import org.osgi.framework.ServiceFactory;
 import org.osgi.framework.ServiceListener;
 import org.osgi.framework.ServiceReference;
 import org.osgi.framework.ServiceRegistration;
@@ -56,9 +58,9 @@ import org.papoose.event.util.SerialExecutor;
 /**
  * @version $Revision: $ $Date: $
  */
-public class EventAdminImpl implements EventAdmin
+public class EventAdminServiceFactory implements ServiceFactory
 {
-    private final static String CLASS_NAME = EventAdminImpl.class.getName();
+    private final static String CLASS_NAME = EventAdminServiceFactory.class.getName();
     private final static Logger LOGGER = Logger.getLogger(CLASS_NAME);
     private final static Filter DEFAULT_FILTER = new Filter()
     {
@@ -84,7 +86,7 @@ public class EventAdminImpl implements EventAdmin
     private volatile int timeout = 60;
     private volatile TimeUnit timeUnit = TimeUnit.SECONDS;
 
-    public EventAdminImpl(BundleContext context, ExecutorService executor, ScheduledExecutorService scheduledExecutor)
+    public EventAdminServiceFactory(BundleContext context, ExecutorService executor, ScheduledExecutorService scheduledExecutor)
     {
         if (context == null) throw new IllegalArgumentException("Bundle context is null");
         if (executor == null) throw new IllegalArgumentException("Executor service is null");
@@ -95,17 +97,17 @@ public class EventAdminImpl implements EventAdmin
         {
             public Object addingService(ServiceReference reference)
             {
-                return EventAdminImpl.this.addingService(reference);
+                return EventAdminServiceFactory.this.addingService(reference);
             }
 
             public void modifiedService(ServiceReference reference, Object service)
             {
-                EventAdminImpl.this.modifiedService(reference, service);
+                EventAdminServiceFactory.this.modifiedService(reference, service);
             }
 
             public void removedService(ServiceReference reference, Object service)
             {
-                EventAdminImpl.this.removedService(reference, service);
+                EventAdminServiceFactory.this.removedService(reference, service);
             }
         });
         this.executor = executor;
@@ -158,7 +160,27 @@ public class EventAdminImpl implements EventAdmin
         loggers.close();
     }
 
-    public void postEvent(final Event event)
+    public Object getService(Bundle bundle, ServiceRegistration registration)
+    {
+        return new EventAdmin()
+        {
+            public void postEvent(Event event)
+            {
+                EventAdminServiceFactory.this.postEvent(event);
+            }
+
+            public void sendEvent(Event event)
+            {
+                EventAdminServiceFactory.this.sendEvent(event);
+            }
+        };
+    }
+
+    public void ungetService(Bundle bundle, ServiceRegistration registration, Object service)
+    {
+    }
+
+    void postEvent(final Event event)
     {
         LOGGER.entering(CLASS_NAME, "postEvent", event);
 
@@ -191,7 +213,7 @@ public class EventAdminImpl implements EventAdmin
         LOGGER.exiting(CLASS_NAME, "postEvent");
     }
 
-    public void sendEvent(final Event event)
+    void sendEvent(final Event event)
     {
         LOGGER.entering(CLASS_NAME, "sendEvent", event);
 
@@ -232,7 +254,6 @@ public class EventAdminImpl implements EventAdmin
 
         LOGGER.exiting(CLASS_NAME, "sendEvent");
     }
-
 
     /**
      * This service tracker customizer culls services that do not have
@@ -464,16 +485,31 @@ public class EventAdminImpl implements EventAdmin
         return set;
     }
 
-    private static void addListeners(Set<EventListener> to, Set<EventListener> from, Event event)
+    /**
+     * Check to make sure that the listener has permission to subscribe to the
+     * topic of the event.  The default implementation always returns
+     * <code>true</code>.
+     * <p/>
+     * This method is overridden by {@link SecureEventAdminServiceFactory}.
+     *
+     * @param listener the listener whose permission is to be checked
+     * @param event    the event that is to be protected
+     * @return <code>true</code> if the listener has permission to access the event, <code>false</code> otherwise.
+     */
+    protected boolean permissionCheck(EventListener listener, Event event)
+    {
+        return true;
+    }
+
+    private void addListeners(Set<EventListener> to, Set<EventListener> from, Event event)
     {
         LOGGER.entering(CLASS_NAME, "addListeners", new Object[]{ to, from, event });
 
         if (from != null)
         {
-
             for (EventListener eventListener : from)
             {
-                if (event.matches(eventListener.filter)) to.add(eventListener);
+                if (permissionCheck(eventListener, event) && event.matches(eventListener.filter)) to.add(eventListener);
             }
         }
 
@@ -550,7 +586,7 @@ public class EventAdminImpl implements EventAdmin
         private final Set<EventListener> wildcards = new HashSet<EventListener>();
     }
 
-    private class EventListener implements EventHandler
+    protected class EventListener implements EventHandler
     {
         private final Executor executor;
         private final String[][] paths;
@@ -564,11 +600,16 @@ public class EventAdminImpl implements EventAdmin
             assert reference != null;
             assert handler != null;
 
-            this.executor = new SerialExecutor(EventAdminImpl.this.executor);
+            this.executor = new SerialExecutor(EventAdminServiceFactory.this.executor);
             this.paths = paths;
             this.reference = reference;
             this.handler = handler;
             this.filter = (filter == null ? DEFAULT_FILTER : context.createFilter(filter));
+        }
+
+        public ServiceReference getReference()
+        {
+            return reference;
         }
 
         public void handleEvent(Event event)

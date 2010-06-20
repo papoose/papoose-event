@@ -30,7 +30,6 @@ import org.osgi.framework.Bundle;
 import org.osgi.framework.BundleEvent;
 import org.osgi.framework.BundleListener;
 import org.osgi.service.event.Event;
-import org.osgi.service.event.EventAdmin;
 import org.osgi.service.event.EventConstants;
 
 
@@ -41,9 +40,9 @@ class BundleEventMapper implements BundleListener
 {
     private final static String CLASS_NAME = BundleEventMapper.class.getName();
     private final static Logger LOGGER = Logger.getLogger(CLASS_NAME);
-    private final EventAdmin eventAdmin;
+    private final EventAdminServiceFactory eventAdmin;
 
-    BundleEventMapper(EventAdmin eventAdmin)
+    BundleEventMapper(EventAdminServiceFactory eventAdmin)
     {
         assert eventAdmin != null;
 

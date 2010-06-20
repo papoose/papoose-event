@@ -45,7 +45,7 @@ public class PapooseBootLevelService
     public final static String LOG_SERVICE_TIME_UNIT = CLASS_NAME + ".timeUnit";
     public final static String LOG_SERVICE_SCHEDULE_CORE_POOL_SIZE = CLASS_NAME + ".scheduleCorePoolSize";
     private final static Logger LOGGER = Logger.getLogger(CLASS_NAME);
-    private volatile EventAdminImpl eventAdminService;
+    private volatile EventAdminServiceFactory eventAdminService;
     private volatile ServiceRegistration registration;
 
     public void start(Papoose papoose)
@@ -95,7 +95,7 @@ public class PapooseBootLevelService
 
         BundleContext bundleContext = papoose.getSystemBundleContext();
 
-        eventAdminService = new EventAdminImpl(bundleContext, executor, scheduledExecutor);
+        eventAdminService = new EventAdminServiceFactory(bundleContext, executor, scheduledExecutor);
 
         eventAdminService.start();
 

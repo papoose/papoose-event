@@ -37,7 +37,8 @@ import org.ops4j.pax.exam.junit.JUnit4TestRunner;
 import org.osgi.framework.ServiceRegistration;
 import org.osgi.service.event.EventAdmin;
 
-import org.papoose.event.EventAdminImpl;
+import org.papoose.event.EventAdminServiceFactory;
+import org.papoose.event.SecureEventAdminServiceFactory;
 
 
 /**
@@ -48,7 +49,7 @@ public class PapooseEventAdminImplTest extends BaseEventAdminImplTest
 {
     private ExecutorService executor;
     private ScheduledExecutorService scheduledExecutor;
-    private EventAdminImpl eventAdmin;
+    private EventAdminServiceFactory eventAdmin;
     private ServiceRegistration sr;
 
     @Configuration
@@ -77,7 +78,7 @@ public class PapooseEventAdminImplTest extends BaseEventAdminImplTest
     {
         executor = Executors.newFixedThreadPool(5);
         scheduledExecutor = Executors.newScheduledThreadPool(2);
-        eventAdmin = new EventAdminImpl(bundleContext, executor, scheduledExecutor);
+        eventAdmin = new SecureEventAdminServiceFactory(bundleContext, executor, scheduledExecutor);
 
         eventAdmin.start();
 

@@ -30,7 +30,6 @@ import org.osgi.framework.Bundle;
 import org.osgi.framework.FrameworkEvent;
 import org.osgi.framework.FrameworkListener;
 import org.osgi.service.event.Event;
-import org.osgi.service.event.EventAdmin;
 import org.osgi.service.event.EventConstants;
 
 
@@ -41,9 +40,9 @@ class FrameworkEventMapper implements FrameworkListener
 {
     private final static String CLASS_NAME = FrameworkEventMapper.class.getName();
     private final static Logger LOGGER = Logger.getLogger(CLASS_NAME);
-    private final EventAdmin eventAdmin;
+    private final EventAdminServiceFactory eventAdmin;
 
-    FrameworkEventMapper(EventAdmin eventAdmin)
+    FrameworkEventMapper(EventAdminServiceFactory eventAdmin)
     {
         assert eventAdmin != null;
 
