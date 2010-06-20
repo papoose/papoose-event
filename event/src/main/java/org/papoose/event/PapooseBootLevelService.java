@@ -28,6 +28,7 @@ import java.util.logging.Logger;
 import org.osgi.framework.BundleContext;
 import org.osgi.framework.ServiceRegistration;
 import org.osgi.service.event.EventAdmin;
+
 import org.papoose.core.Papoose;
 import org.papoose.event.util.Util;
 
@@ -38,12 +39,13 @@ import org.papoose.event.util.Util;
 public class PapooseBootLevelService
 {
     private final static String CLASS_NAME = PapooseBootLevelService.class.getName();
-    public final static String LOG_SERVICE_USE_PAPOOSE_THREAD_POOL = CLASS_NAME + ".usePapooseThreadPool";
-    public final static String LOG_SERVICE_CORE_POOL_SIZE = CLASS_NAME + ".corePoolSize";
-    public final static String LOG_SERVICE_MAX_POOL_SIZE = CLASS_NAME + ".maximumPoolSize";
-    public final static String LOG_SERVICE_KEEP_ALIVE_TIME = CLASS_NAME + ".keepAliveTime";
-    public final static String LOG_SERVICE_TIME_UNIT = CLASS_NAME + ".timeUnit";
-    public final static String LOG_SERVICE_SCHEDULE_CORE_POOL_SIZE = CLASS_NAME + ".scheduleCorePoolSize";
+    public final static String EVENT_ADMIN_SERVICE_USE_SECURE = CLASS_NAME + ".useSecure";
+    public final static String EVENT_ADMIN_SERVICE_USE_PAPOOSE_THREAD_POOL = CLASS_NAME + ".usePapooseThreadPool";
+    public final static String EVENT_ADMIN_SERVICE_CORE_POOL_SIZE = CLASS_NAME + ".corePoolSize";
+    public final static String EVENT_ADMIN_SERVICE_MAX_POOL_SIZE = CLASS_NAME + ".maximumPoolSize";
+    public final static String EVENT_ADMIN_SERVICE_KEEP_ALIVE_TIME = CLASS_NAME + ".keepAliveTime";
+    public final static String EVENT_ADMIN_SERVICE_TIME_UNIT = CLASS_NAME + ".timeUnit";
+    public final static String EVENT_ADMIN_SERVICE_SCHEDULE_CORE_POOL_SIZE = CLASS_NAME + ".scheduleCorePoolSize";
     private final static Logger LOGGER = Logger.getLogger(CLASS_NAME);
     private volatile EventAdminServiceFactory eventAdminService;
     private volatile ServiceRegistration registration;
@@ -62,7 +64,7 @@ public class PapooseBootLevelService
 
         ExecutorService executor;
 
-        if (papoose.getProperty(LOG_SERVICE_USE_PAPOOSE_THREAD_POOL) != null)
+        if (papoose.getProperty(EVENT_ADMIN_SERVICE_USE_PAPOOSE_THREAD_POOL) != null)
         {
             LOGGER.finest("Using Papoose's thread pool");
 
@@ -70,10 +72,10 @@ public class PapooseBootLevelService
         }
         else
         {
-            int corePoolSize = Util.parseInt(papoose.getProperty(LOG_SERVICE_CORE_POOL_SIZE), 1);
-            int maximumPoolSize = Util.parseInt(papoose.getProperty(LOG_SERVICE_MAX_POOL_SIZE), 5);
-            int keepAliveTime = Util.parseInt(papoose.getProperty(LOG_SERVICE_KEEP_ALIVE_TIME), 1);
-            TimeUnit unit = Util.parseTimeUnit(papoose.getProperty(LOG_SERVICE_TIME_UNIT), TimeUnit.SECONDS);
+            int corePoolSize = Util.parseInt(papoose.getProperty(EVENT_ADMIN_SERVICE_CORE_POOL_SIZE), 1);
+            int maximumPoolSize = Util.parseInt(papoose.getProperty(EVENT_ADMIN_SERVICE_MAX_POOL_SIZE), 5);
+            int keepAliveTime = Util.parseInt(papoose.getProperty(EVENT_ADMIN_SERVICE_KEEP_ALIVE_TIME), 1);
+            TimeUnit unit = Util.parseTimeUnit(papoose.getProperty(EVENT_ADMIN_SERVICE_TIME_UNIT), TimeUnit.SECONDS);
 
             if (LOGGER.isLoggable(Level.FINEST))
             {
@@ -87,7 +89,7 @@ public class PapooseBootLevelService
             executor = new ThreadPoolExecutor(corePoolSize, maximumPoolSize, keepAliveTime, unit, new LinkedBlockingQueue<Runnable>());
         }
 
-        int scheduleCorePoolSize = Util.parseInt(papoose.getProperty(LOG_SERVICE_SCHEDULE_CORE_POOL_SIZE), 1);
+        int scheduleCorePoolSize = Util.parseInt(papoose.getProperty(EVENT_ADMIN_SERVICE_SCHEDULE_CORE_POOL_SIZE), 1);
 
         if (LOGGER.isLoggable(Level.FINEST)) LOGGER.finest("scheduleCorePoolSize: " + scheduleCorePoolSize);
 
@@ -95,7 +97,14 @@ public class PapooseBootLevelService
 
         BundleContext bundleContext = papoose.getSystemBundleContext();
 
-        eventAdminService = new EventAdminServiceFactory(bundleContext, executor, scheduledExecutor);
+        if (Util.parseBoolean(papoose.getProperty(EVENT_ADMIN_SERVICE_USE_SECURE), false))
+        {
+            eventAdminService = new SecureEventAdminServiceFactory(bundleContext, executor, scheduledExecutor);
+        }
+        else
+        {
+            eventAdminService = new EventAdminServiceFactory(bundleContext, executor, scheduledExecutor);
+        }
 
         eventAdminService.start();
 

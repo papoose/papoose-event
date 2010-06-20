@@ -55,5 +55,20 @@ public class Util
         return defaultValue;
     }
 
+    public static boolean parseBoolean(Object property, boolean defaultValue)
+    {
+        try
+        {
+            if (property instanceof String) return Boolean.valueOf((String) property);
+            if (property instanceof Boolean) return (Boolean) property;
+            if (property != null) return Boolean.valueOf(property.toString());
+        }
+        catch (Exception ignore)
+        {
+        }
+
+        return defaultValue;
+    }
+
     private Util() {}
 }
