@@ -11,7 +11,7 @@
     <groupId>org.papoose.cmpn</groupId>
     <artifactId>event-project</artifactId>
     <name>Papoose :: Event Admin Service</name>
-    <version>1.0-SNAPSHOT</version>
+    <version>1.0.0</version>
     <packaging>pom</packaging>
 
     <modules>
