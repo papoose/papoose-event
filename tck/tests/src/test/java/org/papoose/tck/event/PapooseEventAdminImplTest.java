@@ -38,7 +38,6 @@ import org.osgi.framework.ServiceRegistration;
 import org.osgi.service.event.EventAdmin;
 
 import org.papoose.event.EventAdminServiceFactory;
-import org.papoose.event.SecureEventAdminServiceFactory;
 
 
 /**
@@ -78,7 +77,7 @@ public class PapooseEventAdminImplTest extends BaseEventAdminImplTest
     {
         executor = Executors.newFixedThreadPool(5);
         scheduledExecutor = Executors.newScheduledThreadPool(2);
-        eventAdmin = new SecureEventAdminServiceFactory(bundleContext, executor, scheduledExecutor);
+        eventAdmin = new EventAdminServiceFactory(bundleContext, executor, scheduledExecutor);
 
         eventAdmin.start();
 
