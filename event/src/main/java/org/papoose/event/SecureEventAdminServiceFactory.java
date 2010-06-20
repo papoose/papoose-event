@@ -74,6 +74,12 @@ public class SecureEventAdminServiceFactory extends EventAdminServiceFactory
     @Override
     protected boolean permissionCheck(EventListener listener, Event event)
     {
-        return listener.getReference().getBundle().hasPermission(new TopicPermission(event.getTopic(), TopicPermission.SUBSCRIBE));
+        LOGGER.entering(CLASS_NAME, "", new Object[]{ listener.getReference(), event });
+
+        boolean result = listener.getReference().getBundle().hasPermission(new TopicPermission(event.getTopic(), TopicPermission.SUBSCRIBE));
+
+        LOGGER.exiting(CLASS_NAME, "", result);
+
+        return result;
     }
 }
