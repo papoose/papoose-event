@@ -53,4 +53,12 @@ public class EquinoxEventAdminImplTest extends BaseEventAdminImplTest
     public void testTimeout()
     {
     }
+
+    /**
+     * Bug /a/b/c/* matches /a/b/c
+     */
+    @Test
+    public void testWildcard()
+    {
+    }
 }

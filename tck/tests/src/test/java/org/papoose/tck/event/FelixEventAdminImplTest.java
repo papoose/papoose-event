@@ -60,10 +60,4 @@ public class FelixEventAdminImplTest extends BaseEventAdminImplTest
                 systemProperty("org.apache.felix.eventadmin.Timeout").value("200")
         );
     }
-
-    @Test
-    public void testWildcard()
-    {
-        // https://issues.apache.org/jira/browse/FELIX-2422
-    }
 }

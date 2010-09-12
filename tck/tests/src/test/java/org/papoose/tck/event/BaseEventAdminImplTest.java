@@ -170,7 +170,7 @@ public abstract class BaseEventAdminImplTest
         properties.put(EventConstants.EVENT_TOPIC, "a/b/c/*");
 
         final CountDownLatch first = new CountDownLatch(1);
-        final CountDownLatch second = new CountDownLatch(3);
+        final CountDownLatch second = new CountDownLatch(2);
         final AtomicInteger count = new AtomicInteger();
         ServiceRegistration sr = bundleContext.registerService(EventHandler.class.getName(), new EventHandler()
         {
@@ -208,7 +208,7 @@ public abstract class BaseEventAdminImplTest
 
             second.await();
 
-            assertEquals(4, count.get());
+            assertEquals(3, count.get());
         }
         finally
         {

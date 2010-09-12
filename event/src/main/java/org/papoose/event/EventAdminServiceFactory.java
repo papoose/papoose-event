@@ -475,7 +475,6 @@ public class EventAdminServiceFactory implements ServiceFactory
             lPtr = lPtr.children.get(tokens[tokens.length - 1]);
             if (lPtr != null)
             {
-                addListeners(set, lPtr.wildcards, event);
                 addListeners(set, lPtr.handlers, event);
             }
         }
